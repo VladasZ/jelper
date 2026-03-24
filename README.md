@@ -19,11 +19,6 @@ brew tap VladasZ/tap
 brew install jelper
 ```
 
-Or manually: download `jelper-macos` from the [latest release](https://github.com/VladasZ/jelper/releases/latest), then:
-```bash
-chmod +x jelper-macos && xattr -d com.apple.quarantine jelper-macos && sudo mv jelper-macos /usr/local/bin/jelper
-```
-
 ## Usage
 
 ```
