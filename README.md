@@ -26,8 +26,19 @@ jelper               # show your timesheet
 jelper --reconfigure # update saved credentials
 ```
 
-On first launch, Jelper will ask for your Jira URL, email, and API token.
-Your browser will open automatically to create an API token.
+### First launch
+
+On first launch, Jelper will prompt for three things:
+
+1. **Jira URL** — your organization's Jira address, e.g. `https://your-org.atlassian.net`
+2. **Jira email** — the email you use to log into Jira
+3. **API token** — your browser will open automatically to the Atlassian token page. Create a new token there, copy it, and paste it back into the terminal.
+
+Jelper will verify the credentials before saving. On success, everything is stored locally and you won't be asked again.
+
+### What it shows
+
+Worklogs are grouped by week and day. Each entry shows the ticket key (clickable link), summary, worklog description, status, and time spent.
 
 ## Credits
 
