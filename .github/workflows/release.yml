@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pyinstaller requests rich keyring
+        run: pip install pyinstaller requests rich keyring keyrings.alt
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
@@ -33,6 +33,7 @@ jobs:
           pyinstaller --onefile --name jelper-macos \
             --hidden-import keyring.backends.macOS \
             --hidden-import keyring.backends.fail \
+            --hidden-import keyrings.alt \
             --icon jelper.ico \
             jelper.py
 
@@ -42,6 +43,7 @@ jobs:
           pyinstaller --onefile --name jelper-windows `
             --hidden-import keyring.backends.Windows `
             --hidden-import keyring.backends.fail `
+            --hidden-import keyrings.alt `
             --icon jelper.ico `
             jelper.py
 
