@@ -394,11 +394,11 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except SystemExit as e:
-        if sys.platform == "win32" and e.code not in (0, None):
-            input("\nPress Enter to exit...")
+    except SystemExit:
         raise
-    except Exception:
+    finally:
         if sys.platform == "win32":
-            input("\nPress Enter to exit...")
-        raise
+            try:
+                input("\nPress Enter to exit...")
+            except EOFError:
+                pass
