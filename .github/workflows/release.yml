@@ -32,13 +32,14 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
       - name: Inject version into script
-        run: python3 -c "
+        run: |
+          python3 << 'EOF'
           with open('jelper.py', 'r') as f:
             content = f.read()
           content = content.replace('__JELPER_VERSION__', '${{ steps.version.outputs.VERSION }}')
           with open('jelper.py', 'w') as f:
             f.write(content)
-        "
+          EOF
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
