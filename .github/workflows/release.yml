@@ -33,7 +33,9 @@ jobs:
 
       - name: Inject version into script
         shell: bash
-        run: python3 -c "import sys; content = open('jelper.py').read().replace('__JELPER_VERSION__', '${{ steps.version.outputs.VERSION }}'); open('jelper.py', 'w').write(content)"
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: python3 -c "content = open('jelper.py', encoding='utf-8').read().replace('__JELPER_VERSION__', '$VERSION'); open('jelper.py', 'w', encoding='utf-8').write(content)"
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
