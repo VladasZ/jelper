@@ -92,3 +92,22 @@ jobs:
             dist/jelper-macos
             dist/jelper-windows-installer.exe
           generate_release_notes: true
+
+      - name: Update Homebrew formula
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOMEBREW_TAP_KEY }}" > ~/.ssh/tap_key
+          chmod 600 ~/.ssh/tap_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key" git clone git@github.com:VladasZ/homebrew-tap.git
+          VERSION="${{ github.ref_name }}"
+          SHA256=$(sha256sum dist/jelper-macos | awk '{print $1}')
+          sed -i "s|releases/download/.*/jelper-macos|releases/download/${VERSION}/jelper-macos|" homebrew-tap/Formula/jelper.rb
+          sed -i "s/version \".*\"/version \"${VERSION#v}\"/" homebrew-tap/Formula/jelper.rb
+          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" homebrew-tap/Formula/jelper.rb
+          cd homebrew-tap
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add Formula/jelper.rb
+          git commit -m "jelper ${VERSION}"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key" git push

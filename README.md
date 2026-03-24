@@ -14,14 +14,15 @@ A Jira timesheet CLI — shows your worklogs grouped by week.
 
 ### macOS
 
-1. Download `jelper-macos` from the [latest release](https://github.com/VladasZ/jelper/releases/latest)
-2. Open a terminal in your Downloads folder and run:
-   ```bash
-   chmod +x jelper-macos
-   xattr -d com.apple.quarantine jelper-macos
-   sudo mv jelper-macos /usr/local/bin/jelper
-   ```
-3. Type `jelper` in any terminal
+```bash
+brew tap VladasZ/tap
+brew install jelper
+```
+
+Or manually: download `jelper-macos` from the [latest release](https://github.com/VladasZ/jelper/releases/latest), then:
+```bash
+chmod +x jelper-macos && xattr -d com.apple.quarantine jelper-macos && sudo mv jelper-macos /usr/local/bin/jelper
+```
 
 ## Usage
 
