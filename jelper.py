@@ -314,4 +314,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        if sys.platform == "win32":
+            input("\nPress Enter to exit...")
