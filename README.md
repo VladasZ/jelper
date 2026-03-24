@@ -8,7 +8,7 @@ A Jira timesheet CLI — shows your worklogs grouped by week.
 
 ### Windows
 
-1. Download `jelper-installer.exe` from the [latest release](https://github.com/VladasZ/jelper/releases/latest)
+1. Download `jelper-windows-installer.exe` from the [latest release](https://github.com/VladasZ/jelper/releases/latest)
 2. Run the installer and follow the steps
 3. Open a new terminal and type `jelper`
 
