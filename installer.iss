@@ -16,8 +16,8 @@ ChangesEnvironment=yes
 Source: "dist\jelper-windows.exe"; DestDir: "{app}"; DestName: "jelper.exe"
 
 [Tasks]
-Name: "startmenu"; Description: "Create a Start Menu shortcut"; GroupDescription: "Shortcuts:"; Flags: checked
-Name: "desktopicon"; Description: "Create a Desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: checked
+Name: "startmenu"; Description: "Create a Start Menu shortcut"; GroupDescription: "Shortcuts:"
+Name: "desktopicon"; Description: "Create a Desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Icons]
 Name: "{group}\Jelper"; Filename: "{app}\jelper.exe"; IconFilename: "{app}\jelper.exe"; Tasks: startmenu
