@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Jira timesheet CLI — shows your worklogs grouped by week."""
 
+import argparse
 import json
+import logging
 import subprocess
 import sys
 import webbrowser
@@ -11,6 +13,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+
+# VERSION is injected by GitHub Actions during build
+VERSION = "__JELPER_VERSION__"
+logger = logging.getLogger(__name__)
 
 REQUIRED = ["requests", "rich", "keyring"]
 
@@ -29,6 +35,16 @@ def _ensure_deps():
 
 
 _ensure_deps()
+
+
+def setup_logging(verbose=False):
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="[%(levelname)s] %(message)s"
+    )
+    logger.debug(f"jelper {VERSION} — logging initialized")
+
 
 import keyring
 import requests
@@ -49,13 +65,38 @@ JIRA_EMAIL = ""
 JIRA_TOKEN = ""
 
 
-def load_config():
+def load_config(url=None, email=None, token=None):
     global JIRA_URL, JIRA_EMAIL, JIRA_TOKEN
-    if CONFIG_PATH.exists():
+
+    # CLI arguments take precedence
+    if url:
+        JIRA_URL = url
+        logger.debug(f"Using Jira URL from CLI: {url}")
+    elif CONFIG_PATH.exists():
         data = json.loads(CONFIG_PATH.read_text())
         JIRA_URL = data.get("jira_url", "")
+        logger.debug(f"Loaded Jira URL from config: {JIRA_URL}")
+
+    if email:
+        JIRA_EMAIL = email
+        logger.debug(f"Using Jira email from CLI: {email}")
+    elif CONFIG_PATH.exists():
+        data = json.loads(CONFIG_PATH.read_text())
         JIRA_EMAIL = data.get("jira_email", "")
-    JIRA_TOKEN = keyring.get_password(KEYRING_SERVICE, KEYRING_KEY) or ""
+        logger.debug(f"Loaded Jira email from config: {JIRA_EMAIL}")
+
+    if token:
+        JIRA_TOKEN = token
+        logger.debug("Using API token from CLI")
+    else:
+        try:
+            JIRA_TOKEN = keyring.get_password(KEYRING_SERVICE, KEYRING_KEY) or ""
+            if JIRA_TOKEN:
+                logger.debug("Retrieved API token from keyring")
+            else:
+                logger.debug("No API token found in keyring")
+        except Exception as e:
+            logger.warning(f"Failed to retrieve token from keyring: {e}")
 
 
 def save_config(url, email, token):
@@ -87,6 +128,7 @@ def setup():
     token = Prompt.ask("Paste your API token", password=True)
 
     console.print("\nVerifying credentials...", end=" ")
+    logger.debug(f"Verifying credentials for {email} at {url}")
     try:
         r = requests.get(
             f"{url}/rest/api/3/myself",
@@ -94,34 +136,51 @@ def setup():
             headers={"Accept": "application/json"},
             timeout=15,
         )
+        logger.debug(f"Verification response status: {r.status_code}")
         r.raise_for_status()
         name = r.json().get("displayName", email)
         console.print(f"[green]OK[/green] — logged in as [bold]{name}[/bold]\n")
+        logger.info(f"Credentials verified for {name}")
     except requests.HTTPError as e:
+        logger.error(f"Verification failed with HTTP {r.status_code}: {r.text}")
         console.print(f"[red]Failed[/red] ({e})\n")
         sys.exit(1)
     except requests.RequestException as e:
+        logger.error(f"Connection error during verification: {e}")
         console.print(f"[red]Connection error[/red] ({e})\n")
         sys.exit(1)
 
     save_config(url, email, token)
     JIRA_URL, JIRA_EMAIL, JIRA_TOKEN = url, email, token
     console.print("[green]Configuration saved.[/green]\n")
+    logger.info("Configuration saved")
 
 
 def jira_get(path, params=None):
     if not JIRA_EMAIL or not JIRA_TOKEN:
+        logger.error("Missing Jira credentials")
         console.print("[red]Run jelper --reconfigure to set up credentials.[/red]")
         sys.exit(1)
-    r = requests.get(
-        f"{JIRA_URL}/rest/api/3{path}",
-        params=params,
-        auth=(JIRA_EMAIL, JIRA_TOKEN),
-        headers={"Accept": "application/json"},
-        timeout=15,
-    )
-    r.raise_for_status()
-    return r.json()
+
+    url = f"{JIRA_URL}/rest/api/3{path}"
+    logger.debug(f"Requesting: {url}")
+    try:
+        r = requests.get(
+            url,
+            params=params,
+            auth=(JIRA_EMAIL, JIRA_TOKEN),
+            headers={"Accept": "application/json"},
+            timeout=15,
+        )
+        logger.debug(f"Response status: {r.status_code}")
+        r.raise_for_status()
+        return r.json()
+    except requests.HTTPError as e:
+        logger.error(f"HTTP Error {r.status_code}: {r.text}")
+        raise
+    except Exception as e:
+        logger.error(f"Request failed: {e}")
+        raise
 
 
 def get_current_user():
@@ -298,17 +357,36 @@ def render(entries):
 
 
 def main():
-    reconfigure = "--reconfigure" in sys.argv
-    load_config()
+    parser = argparse.ArgumentParser(description="Jira timesheet CLI")
+    parser.add_argument("--version", action="version", version=f"jelper {VERSION}")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument("--reconfigure", action="store_true", help="Reconfigure Jira credentials")
+    parser.add_argument("--url", help="Jira URL (e.g., https://your-org.atlassian.net)")
+    parser.add_argument("--email", help="Jira email")
+    parser.add_argument("--token", help="Jira API token")
 
-    if reconfigure or not (JIRA_URL and JIRA_EMAIL and JIRA_TOKEN):
+    args = parser.parse_args()
+
+    setup_logging(args.verbose)
+    logger.debug(f"jelper {VERSION} started")
+
+    load_config(url=args.url, email=args.email, token=args.token)
+
+    if args.reconfigure or not (JIRA_URL and JIRA_EMAIL and JIRA_TOKEN):
+        logger.debug("Starting setup wizard")
         setup()
+
+    logger.debug(f"Using Jira URL: {JIRA_URL}")
+    logger.debug(f"Using email: {JIRA_EMAIL}")
 
     with console.status("Fetching from Jira..."):
         user = get_current_user()
         account_id = user["accountId"]
+        logger.debug(f"User account ID: {account_id}")
         issues = get_issues(account_id)
+        logger.debug(f"Found {len(issues)} issues")
         entries = extract_entries(issues, account_id)
+        logger.debug(f"Extracted {len(entries)} worklog entries")
 
     render(entries)
 
@@ -316,6 +394,11 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    finally:
+    except SystemExit as e:
+        if sys.platform == "win32" and e.code not in (0, None):
+            input("\nPress Enter to exit...")
+        raise
+    except Exception:
         if sys.platform == "win32":
             input("\nPress Enter to exit...")
+        raise

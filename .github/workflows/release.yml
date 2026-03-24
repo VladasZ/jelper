@@ -27,6 +27,13 @@ jobs:
       - name: Install dependencies
         run: pip install pyinstaller requests rich keyring keyrings.alt
 
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Inject version into script
+        run: sed -i 's/__JELPER_VERSION__/${{ steps.version.outputs.VERSION }}/g' jelper.py
+
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
