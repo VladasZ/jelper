@@ -1,6 +1,6 @@
-# Jelper
-
 <img src="jelper.png" width="80" align="left" style="margin-right: 16px"/>
+
+# Jelper
 
 A Jira timesheet CLI — shows your worklogs grouped by week.
 
