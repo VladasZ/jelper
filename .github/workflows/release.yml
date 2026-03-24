@@ -51,16 +51,25 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart("v")
           iscc /DAppVersion=$version installer.iss
 
-      - uses: actions/upload-artifact@v7
+      - name: Upload (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
-          path: |
-            dist/jelper-macos
-            Output/jelper-installer.exe
+          name: jelper-macos
+          path: dist/jelper-macos
+
+      - name: Upload (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: jelper-installer.exe
+          path: Output/jelper-installer.exe
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     permissions:
       contents: write
@@ -68,11 +77,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
+          name: jelper-macos
           path: dist
-          merge-multiple: true
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: jelper-installer.exe
+          path: dist
 
       - name: Create release
         uses: softprops/action-gh-release@v2.6.1
         with:
-          files: dist/*
+          files: |
+            dist/jelper-macos
+            dist/jelper-installer.exe
           generate_release_notes: true
