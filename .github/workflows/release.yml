@@ -35,33 +35,19 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
-        run: python3 -c "content = open('jelper.py', encoding='utf-8').read().replace('__JELPER_VERSION__', '$VERSION'); open('jelper.py', 'w', encoding='utf-8').write(content)"
+        run: python3 scripts/inject_version.py
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
-        run: |
-          pyinstaller --onefile --name jelper-macos \
-            --hidden-import keyring.backends.macOS \
-            --hidden-import keyring.backends.fail \
-            --hidden-import keyrings.alt \
-            --icon jelper.ico \
-            jelper.py
+        run: bash scripts/build_macos.sh
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        run: |
-          pyinstaller --onefile --name jelper-windows `
-            --hidden-import keyring.backends.Windows `
-            --hidden-import keyring.backends.fail `
-            --hidden-import keyrings.alt `
-            --icon jelper.ico `
-            jelper.py
+        run: scripts/build_windows.ps1
 
       - name: Build installer (Windows)
         if: runner.os == 'Windows'
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          iscc /DAppVersion=$version installer.iss
+        run: scripts/build_installer_windows.ps1 -Version "${{ steps.version.outputs.VERSION }}"
 
       - name: Upload (macOS)
         if: runner.os == 'macOS'
@@ -87,6 +73,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v7
         with:
           name: jelper-macos
@@ -106,20 +94,4 @@ jobs:
           generate_release_notes: true
 
       - name: Update Homebrew formula
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HOMEBREW_TAP_KEY }}" > ~/.ssh/tap_key
-          chmod 600 ~/.ssh/tap_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key" git clone git@github.com:VladasZ/homebrew-tap.git
-          VERSION="${{ github.ref_name }}"
-          SHA256=$(sha256sum dist/jelper-macos | awk '{print $1}')
-          sed -i "s|releases/download/.*/jelper-macos|releases/download/${VERSION}/jelper-macos|" homebrew-tap/Formula/jelper.rb
-          sed -i "s/version \".*\"/version \"${VERSION#v}\"/" homebrew-tap/Formula/jelper.rb
-          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" homebrew-tap/Formula/jelper.rb
-          cd homebrew-tap
-          git config user.email "actions@github.com"
-          git config user.name "GitHub Actions"
-          git add Formula/jelper.rb
-          git commit -m "jelper ${VERSION}"
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key" git push
+        run: bash scripts/update_homebrew.sh "${{ github.ref_name }}" dist/jelper-macos "${{ secrets.HOMEBREW_TAP_KEY }}"

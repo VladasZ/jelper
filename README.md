@@ -36,6 +36,8 @@ On first launch, Jelper will prompt for three things:
 
 Jelper will verify the credentials before saving. On success, everything is stored locally and you won't be asked again.
 
+The API token is stored in the OS keychain (Keychain on macOS, Credential Manager on Windows). The Jira URL and email are saved in plain text at `~/.config/jelper/config.json`.
+
 ### What it shows
 
 Worklogs are grouped by week and day. Each entry shows the ticket key (clickable link), summary, worklog description, status, and time spent.
