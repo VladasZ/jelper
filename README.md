@@ -24,6 +24,8 @@ brew install jelper
 ```
 jelper               # show your timesheet
 jelper --reconfigure # update saved credentials
+jelper --json        # export worklogs as JSON
+jelper --toon        # export worklogs as TOON
 ```
 
 ### First launch
