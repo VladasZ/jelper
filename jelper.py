@@ -34,7 +34,8 @@ def _ensure_deps():
         print()
 
 
-_ensure_deps()
+if not (len(sys.argv) == 2 and sys.argv[1] in ("--version", "-h", "--help")):
+    _ensure_deps()
 
 
 def setup_logging(verbose=False):
@@ -46,15 +47,18 @@ def setup_logging(verbose=False):
     logger.debug(f"jelper {VERSION} — logging initialized")
 
 
-import keyring
-import requests
-from rich import box
-from rich.console import Console
-from rich.padding import Padding
-from rich.prompt import Prompt
-from rich.rule import Rule
-from rich.table import Table
-from rich.text import Text
+_quick_exit = len(sys.argv) == 2 and sys.argv[1] in ("--version", "-h", "--help")
+
+if not _quick_exit:
+    import keyring
+    import requests
+    from rich import box
+    from rich.console import Console
+    from rich.padding import Padding
+    from rich.prompt import Prompt
+    from rich.rule import Rule
+    from rich.table import Table
+    from rich.text import Text
 
 CONFIG_PATH = Path.home() / ".config" / "jelper" / "config.json"
 KEYRING_SERVICE = "jelper"
@@ -114,7 +118,7 @@ STATUS_STYLES = {
     "Selected for Development": ("cyan", "🎯"),
 }
 
-console = Console()
+console = Console() if not _quick_exit else None
 
 
 def setup():
