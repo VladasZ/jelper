@@ -18,16 +18,17 @@ warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 VERSION = "__JELPER_VERSION__"
 logger = logging.getLogger(__name__)
 
-REQUIRED = ["requests", "rich", "keyring", "python-toon"]
+# (import_name, install_name)
+REQUIRED = [("requests", "requests"), ("rich", "rich"), ("keyring", "keyring"), ("toon", "python-toon")]
 
 
 def _ensure_deps():
     missing = []
-    for pkg in REQUIRED:
+    for import_name, install_name in REQUIRED:
         try:
-            __import__(pkg)
+            __import__(import_name)
         except ImportError:
-            missing.append(pkg)
+            missing.append(install_name)
     if missing:
         print(f"Installing missing dependencies: {', '.join(missing)}")
         subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
