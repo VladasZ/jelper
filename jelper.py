@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 VERSION = "__JELPER_VERSION__"
 logger = logging.getLogger(__name__)
 
-REQUIRED = ["requests", "rich", "keyring"]
+REQUIRED = ["requests", "rich", "keyring", "python-toon"]
 
 
 def _ensure_deps():
@@ -47,6 +47,7 @@ def setup_logging(verbose=False):
 
 
 import keyring
+from toon import encode as toon_encode
 import requests
 from rich import box
 from rich.console import Console
@@ -247,6 +248,7 @@ def extract_entries(issues, account_id):
     return entries
 
 
+
 def week_bounds(date_str):
     d = datetime.strptime(date_str, "%Y-%m-%d")
     monday = d - timedelta(days=d.weekday())
@@ -364,6 +366,8 @@ def main():
     parser.add_argument("--url", help="Jira URL (e.g., https://your-org.atlassian.net)")
     parser.add_argument("--email", help="Jira email")
     parser.add_argument("--token", help="Jira API token")
+    parser.add_argument("--json", action="store_true", help="Output worklogs as JSON")
+    parser.add_argument("--toon", action="store_true", help="Output worklogs as TOON")
 
     args = parser.parse_args()
 
@@ -388,7 +392,12 @@ def main():
         entries = extract_entries(issues, account_id)
         logger.debug(f"Extracted {len(entries)} worklog entries")
 
-    render(entries)
+    if args.json:
+        print(json.dumps(entries, indent=2))
+    elif args.toon:
+        print(toon_encode(entries))
+    else:
+        render(entries)
 
 
 if __name__ == "__main__":
