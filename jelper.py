@@ -18,17 +18,16 @@ warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 VERSION = "__JELPER_VERSION__"
 logger = logging.getLogger(__name__)
 
-# (import_name, install_name)
-REQUIRED = [("requests", "requests"), ("rich", "rich"), ("keyring", "keyring"), ("toon", "python-toon")]
+REQUIRED = ["requests", "rich", "keyring"]
 
 
 def _ensure_deps():
     missing = []
-    for import_name, install_name in REQUIRED:
+    for pkg in REQUIRED:
         try:
-            __import__(import_name)
+            __import__(pkg)
         except ImportError:
-            missing.append(install_name)
+            missing.append(pkg)
     if missing:
         print(f"Installing missing dependencies: {', '.join(missing)}")
         subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
@@ -48,7 +47,6 @@ def setup_logging(verbose=False):
 
 
 import keyring
-from toon import encode as toon_encode
 import requests
 from rich import box
 from rich.console import Console
@@ -250,6 +248,29 @@ def extract_entries(issues, account_id):
 
 
 
+# No third-party TOON library is used here. The `python-toon` package's import
+# name (`toon`) collides with an unrelated PyPI package also named `toon`, and
+# the install loop cannot be reliably broken in a single-file script that
+# auto-installs deps at startup. The format is simple enough to encode manually.
+def to_toon(entries):
+    if not entries:
+        return "entries[0]:\n"
+    fields = list(entries[0].keys())
+    needs_quoting = set(',:|[]{}"\\\n\r\t')
+
+    def quote(v):
+        s = "null" if v is None else str(v)
+        if not s or s != s.strip() or any(c in s for c in needs_quoting):
+            s = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+            return f'"{s}"'
+        return s
+
+    lines = [f"entries[{len(entries)}]{{{','.join(fields)}}}:"]
+    for e in entries:
+        lines.append("  " + ",".join(quote(e[f]) for f in fields))
+    return "\n".join(lines) + "\n"
+
+
 def week_bounds(date_str):
     d = datetime.strptime(date_str, "%Y-%m-%d")
     monday = d - timedelta(days=d.weekday())
@@ -396,7 +417,7 @@ def main():
     if args.json:
         print(json.dumps(entries, indent=2))
     elif args.toon:
-        print(toon_encode(entries))
+        print(to_toon(entries))
     else:
         render(entries)
 
