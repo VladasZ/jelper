@@ -188,7 +188,7 @@ def get_current_user():
 
 
 def get_issues(account_id):
-    jql = f'assignee = "{account_id}" ORDER BY updated DESC'
+    jql = f'worklogAuthor = "{account_id}" ORDER BY updated DESC'
     fields = "summary,status,timespent,worklog,project"
     issues = []
     params = {"jql": jql, "fields": fields, "maxResults": 100}
