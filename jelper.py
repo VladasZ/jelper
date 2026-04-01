@@ -393,6 +393,68 @@ def render(entries):
         )
 
 
+def render_by_task(entries):
+    if not entries:
+        console.print("[yellow]No worklogs found.[/yellow]")
+        return
+
+    by_month = defaultdict(list)
+    for e in entries:
+        by_month[e["started"][:7]].append(e)
+
+    for month_key in sorted(by_month.keys()):
+        month_entries = by_month[month_key]
+        month_name = datetime.strptime(month_key, "%Y-%m").strftime("%B %Y")
+
+        console.print()
+        console.print(Rule(f"[bold]{month_name}[/bold]", style="bright_white"))
+
+        by_task = defaultdict(list)
+        for e in month_entries:
+            by_task[e["key"]].append(e)
+
+        table = Table(
+            box=box.ROUNDED,
+            show_lines=True,
+            show_footer=False,
+            pad_edge=False,
+            expand=True,
+        )
+        table.add_column("Key", no_wrap=True, min_width=8)
+        table.add_column("Summary", max_width=40)
+        table.add_column("Status", no_wrap=True, min_width=14)
+        table.add_column("Started", no_wrap=True, min_width=10)
+        table.add_column("Time", justify="right", no_wrap=True, min_width=6)
+
+        month_seconds = 0
+        for key in sorted(by_task.keys(), key=lambda k: min(e["started"] for e in by_task[k])):
+            task_entries = by_task[key]
+            total = sum(e["seconds"] for e in task_entries)
+            started = min(e["started"] for e in task_entries)
+            sample = task_entries[0]
+            key_text = Text(key, style=f"bold cyan link {sample['url']}")
+            table.add_row(
+                key_text,
+                sample["summary"],
+                status_cell(sample["status"]),
+                started,
+                format_hours(total),
+            )
+            month_seconds += total
+
+        table.add_section()
+        table.add_row(
+            Text("Total", style="bold"),
+            Text(f"{len(by_task)} tasks", style="dim"),
+            "",
+            "",
+            Text(format_hours(month_seconds), style="bold green"),
+        )
+
+        console.print()
+        console.print(Padding(table, (0, 2)))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Jira timesheet CLI")
     parser.add_argument("--version", action="version", version=f"jelper {VERSION}")
@@ -403,6 +465,7 @@ def main():
     parser.add_argument("--token", help="Jira API token")
     parser.add_argument("--json", action="store_true", help="Output worklogs as JSON")
     parser.add_argument("--toon", action="store_true", help="Output worklogs as TOON")
+    parser.add_argument("--tasks", action="store_true", help="Output grouped by task with total time per task")
 
     args = parser.parse_args()
 
@@ -431,10 +494,35 @@ def main():
     cutoff = (now.replace(day=1) - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
     entries = [e for e in entries if e["started"][:7] >= cutoff]
 
-    if args.json:
+    if args.tasks and args.json:
+        by_month = defaultdict(list)
+        for e in entries:
+            by_month[e["started"][:7]].append(e)
+        result = {}
+        for month_key in sorted(by_month.keys()):
+            by_task = defaultdict(list)
+            for e in by_month[month_key]:
+                by_task[e["key"]].append(e)
+            result[month_key] = [
+                {
+                    "key": key,
+                    "summary": task_entries[0]["summary"],
+                    "status": task_entries[0]["status"],
+                    "url": task_entries[0]["url"],
+                    "started": min(e["started"] for e in task_entries),
+                    "seconds": sum(e["seconds"] for e in task_entries),
+                }
+                for key, task_entries in sorted(
+                    by_task.items(), key=lambda kv: min(e["started"] for e in kv[1])
+                )
+            ]
+        print(json.dumps(result, indent=2))
+    elif args.json:
         print(json.dumps(entries, indent=2))
     elif args.toon:
         print(to_toon(entries))
+    elif args.tasks:
+        render_by_task(entries)
     else:
         render(entries)
 
