@@ -192,7 +192,7 @@ def get_current_user():
 
 
 def get_issues(account_id):
-    jql = f'worklogAuthor = "{account_id}" ORDER BY updated DESC'
+    jql = f'worklogAuthor = "{account_id}" AND worklogDate >= startOfMonth(-1) ORDER BY updated DESC'
     fields = "summary,status,timespent,worklog,project"
     issues = []
     params = {"jql": jql, "fields": fields, "maxResults": 100}
@@ -309,79 +309,88 @@ def render(entries):
         console.print("[yellow]No worklogs found.[/yellow]")
         return
 
-    groups = defaultdict(list)
-    for e in entries:
-        groups[week_label(e["started"])].append(e)
-
-    sorted_groups = sorted(
-        groups.items(),
-        key=lambda x: week_sort_key(x[1][0]["started"]),
-        reverse=False,
-    )
-
-    total_seconds = 0
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    for label, group_entries in sorted_groups:
+    by_month = defaultdict(list)
+    for e in entries:
+        by_month[e["started"][:7]].append(e)
+
+    for month_key in sorted(by_month.keys()):
+        month_entries = by_month[month_key]
+        month_name = datetime.strptime(month_key, "%Y-%m").strftime("%B %Y")
+
         console.print()
-        console.print(Rule(f"[bold]{label}[/bold]", style="dim"))
+        console.print(Rule(f"[bold]{month_name}[/bold]", style="bright_white"))
 
-        days = defaultdict(list)
-        for e in group_entries:
-            days[e["started"]].append(e)
+        groups = defaultdict(list)
+        for e in month_entries:
+            groups[week_label(e["started"])].append(e)
 
-        group_seconds = 0
-        for day_str in sorted(days.keys()):
-            day_entries = days[day_str]
-            d = datetime.strptime(day_str, "%Y-%m-%d")
-            day_label = d.strftime("%A, %b %d")
-            if day_str == today_str:
-                day_label += "  [bold magenta](today)[/bold magenta]"
-
-            table = Table(
-                box=box.ROUNDED,
-                show_lines=True,
-                show_footer=False,
-                pad_edge=False,
-                expand=True,
-            )
-            table.add_column("Key", no_wrap=True, min_width=8)
-            table.add_column("Summary", max_width=40)
-            table.add_column("Description", max_width=40)
-            table.add_column("Status", no_wrap=True, min_width=14)
-            table.add_column("Time", justify="right", no_wrap=True, min_width=6)
-
-            day_seconds = 0
-            for e in sorted(day_entries, key=lambda x: x["started"]):
-                key_text = Text(e["key"], style=f"bold cyan link {e['url']}")
-                table.add_row(
-                    key_text,
-                    e["summary"],
-                    e["description"] or "",
-                    status_cell(e["status"]),
-                    format_hours(e["seconds"]),
-                )
-                day_seconds += e["seconds"]
-            group_seconds += day_seconds
-
-            day_total_style = "bold green" if day_seconds >= 28800 else "dim"
-            console.print(
-                f"\n  [bold]{day_label}[/bold]  [{day_total_style}]{format_hours(day_seconds)}[/{day_total_style}]"
-            )
-            console.print(Padding(table, (0, 2)))
-
-        week_style = "bold green" if group_seconds >= 144000 else "bold cyan"
-        console.print(
-            f"  [bold]Week total:[/bold] [{week_style}]{format_hours(group_seconds)}[/{week_style}]"
+        sorted_groups = sorted(
+            groups.items(),
+            key=lambda x: week_sort_key(x[1][0]["started"]),
         )
-        total_seconds += group_seconds
 
-    console.print()
-    console.print(Rule(style="dim"))
-    month = datetime.now().strftime("%B")
-    console.print(
-        f"\n  [bold]Grand total for {month}:[/bold] [bold green]{format_hours(total_seconds)}[/bold green] across [bold]{len(entries)}[/bold] worklog entries\n"
-    )
+        month_seconds = 0
+        for label, group_entries in sorted_groups:
+            console.print()
+            console.print(Rule(f"[bold]{label}[/bold]", style="dim"))
+
+            days = defaultdict(list)
+            for e in group_entries:
+                days[e["started"]].append(e)
+
+            group_seconds = 0
+            for day_str in sorted(days.keys()):
+                day_entries = days[day_str]
+                d = datetime.strptime(day_str, "%Y-%m-%d")
+                day_label = d.strftime("%A, %b %d")
+                if day_str == today_str:
+                    day_label += "  [bold magenta](today)[/bold magenta]"
+
+                table = Table(
+                    box=box.ROUNDED,
+                    show_lines=True,
+                    show_footer=False,
+                    pad_edge=False,
+                    expand=True,
+                )
+                table.add_column("Key", no_wrap=True, min_width=8)
+                table.add_column("Summary", max_width=40)
+                table.add_column("Description", max_width=40)
+                table.add_column("Status", no_wrap=True, min_width=14)
+                table.add_column("Time", justify="right", no_wrap=True, min_width=6)
+
+                day_seconds = 0
+                for e in sorted(day_entries, key=lambda x: x["started"]):
+                    key_text = Text(e["key"], style=f"bold cyan link {e['url']}")
+                    table.add_row(
+                        key_text,
+                        e["summary"],
+                        e["description"] or "",
+                        status_cell(e["status"]),
+                        format_hours(e["seconds"]),
+                    )
+                    day_seconds += e["seconds"]
+                group_seconds += day_seconds
+
+                day_total_style = "bold green" if day_seconds >= 28800 else "dim"
+                console.print(
+                    f"\n  [bold]{day_label}[/bold]  [{day_total_style}]{format_hours(day_seconds)}[/{day_total_style}]"
+                )
+                console.print(Padding(table, (0, 2)))
+
+            week_style = "bold green" if group_seconds >= 144000 else "bold cyan"
+            console.print(
+                f"  [bold]Week total:[/bold] [{week_style}]{format_hours(group_seconds)}[/{week_style}]"
+            )
+            month_seconds += group_seconds
+
+        console.print()
+        console.print(Rule(style="dim"))
+        console.print(
+            f"\n  [bold]Total for {month_name}:[/bold] [bold green]{format_hours(month_seconds)}[/bold green] across [bold]{len(month_entries)}[/bold] worklog entries\n"
+        )
 
 
 def main():
@@ -417,6 +426,10 @@ def main():
         logger.debug(f"Found {len(issues)} issues")
         entries = extract_entries(issues, account_id)
         logger.debug(f"Extracted {len(entries)} worklog entries")
+
+    now = datetime.now()
+    cutoff = (now.replace(day=1) - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
+    entries = [e for e in entries if e["started"][:7] >= cutoff]
 
     if args.json:
         print(json.dumps(entries, indent=2))
