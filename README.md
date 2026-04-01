@@ -2,7 +2,7 @@
 
 # Jelper
 
-A Jira timesheet CLI — shows your worklogs grouped by week.
+A Jira timesheet CLI — shows your worklogs grouped by week and month.
 
 ## Installation
 
@@ -22,10 +22,13 @@ brew install jelper
 ## Usage
 
 ```
-jelper               # show your timesheet
-jelper --reconfigure # update saved credentials
+jelper               # show your timesheet (current + last month, grouped by week)
+jelper --tasks       # show tasks grouped by total time per month
+jelper --xlsx        # export last month's tasks to an Excel file (e.g. march-2026.xlsx)
 jelper --json        # export worklogs as JSON
+jelper --tasks --json  # export task summary as JSON
 jelper --toon        # export worklogs as TOON
+jelper --reconfigure # update saved credentials
 ```
 
 ### First launch
@@ -42,7 +45,11 @@ The API token is stored in the OS keychain (Keychain on macOS, Credential Manage
 
 ### What it shows
 
-Worklogs are grouped by week and day. Each entry shows the ticket key (clickable link), summary, worklog description, status, and time spent.
+Worklogs cover the current month and the previous month. The default view groups entries by month, then by week and day. Each entry shows the ticket key (clickable link), summary, worklog description, status, and time spent.
+
+`--tasks` shows a summary table per month where each row is a unique task with its earliest start date and total hours logged.
+
+`--xlsx` generates an Excel spreadsheet for last month with one sheet, a title, and a totals row.
 
 ## Credits
 

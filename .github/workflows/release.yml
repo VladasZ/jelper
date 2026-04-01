@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pyinstaller requests rich keyring keyrings.alt
+        run: pip install pyinstaller requests rich keyring keyrings.alt openpyxl
 
       - name: Extract version from tag
         id: version

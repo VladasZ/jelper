@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 VERSION = "__JELPER_VERSION__"
 logger = logging.getLogger(__name__)
 
-REQUIRED = ["requests", "rich", "keyring"]
+REQUIRED = ["requests", "rich", "keyring", "openpyxl"]
 
 
 def _ensure_deps():
@@ -34,7 +34,7 @@ def _ensure_deps():
         print()
 
 
-if not (len(sys.argv) == 2 and sys.argv[1] in ("--version", "-h", "--help")):
+if not getattr(sys, "frozen", False) and not (len(sys.argv) == 2 and sys.argv[1] in ("--version", "-h", "--help")):
     _ensure_deps()
 
 
@@ -455,6 +455,76 @@ def render_by_task(entries):
         console.print(Padding(table, (0, 2)))
 
 
+def export_xlsx(entries, path):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    by_month = defaultdict(list)
+    for e in entries:
+        by_month[e["started"][:7]].append(e)
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+    total_font = Font(bold=True)
+    total_fill = PatternFill("solid", fgColor="D9E1F2")
+
+    for month_key in sorted(by_month.keys()):
+        month_name = datetime.strptime(month_key, "%Y-%m").strftime("%B %Y")
+        ws = wb.create_sheet(title=month_name)
+
+        ws.append([f"Timesheet — {month_name}"])
+        ws.cell(1, 1).font = Font(bold=True, size=14)
+        ws.append([])
+
+        headers = ["Task", "Summary", "Started", "Hours"]
+        ws.append(headers)
+        for col, _ in enumerate(headers, 1):
+            cell = ws.cell(3, col)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+
+        by_task = defaultdict(list)
+        for e in by_month[month_key]:
+            by_task[e["key"]].append(e)
+
+        month_seconds = 0
+        for key in sorted(by_task.keys(), key=lambda k: min(e["started"] for e in by_task[k])):
+            task_entries = by_task[key]
+            total = sum(e["seconds"] for e in task_entries)
+            started = min(e["started"] for e in task_entries)
+            sample = task_entries[0]
+            hours = round(total / 3600, 2)
+            ws.append([key, sample["summary"], started, hours])
+            row = ws.max_row
+            ws.cell(row, 1).hyperlink = sample["url"]
+            ws.cell(row, 1).font = Font(color="0563C1", underline="single")
+            ws.cell(row, 1).alignment = Alignment(vertical="top")
+            ws.cell(row, 2).alignment = Alignment(wrap_text=True, vertical="top")
+            ws.cell(row, 3).alignment = Alignment(vertical="top")
+            ws.cell(row, 4).alignment = Alignment(vertical="top")
+            month_seconds += total
+
+        total_row = ws.max_row + 1
+        ws.cell(total_row, 1, "Total").font = total_font
+        ws.cell(total_row, 1).fill = total_fill
+        ws.cell(total_row, 3, f"{len(by_task)} tasks").font = total_font
+        ws.cell(total_row, 3).fill = total_fill
+        ws.cell(total_row, 4, round(month_seconds / 3600, 2)).font = total_font
+        ws.cell(total_row, 4).fill = total_fill
+
+        ws.column_dimensions[get_column_letter(1)].width = 12
+        ws.column_dimensions[get_column_letter(2)].width = 55
+        ws.column_dimensions[get_column_letter(3)].width = 12
+        ws.column_dimensions[get_column_letter(4)].width = 8
+
+    wb.save(path)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Jira timesheet CLI")
     parser.add_argument("--version", action="version", version=f"jelper {VERSION}")
@@ -466,6 +536,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output worklogs as JSON")
     parser.add_argument("--toon", action="store_true", help="Output worklogs as TOON")
     parser.add_argument("--tasks", action="store_true", help="Output grouped by task with total time per task")
+    parser.add_argument("--xlsx", action="store_true", help="Export task timesheet to an XLSX file")
 
     args = parser.parse_args()
 
@@ -494,7 +565,14 @@ def main():
     cutoff = (now.replace(day=1) - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
     entries = [e for e in entries if e["started"][:7] >= cutoff]
 
-    if args.tasks and args.json:
+    if args.xlsx:
+        last_month_dt = datetime.now().replace(day=1) - timedelta(days=1)
+        last_month = last_month_dt.strftime("%Y-%m")
+        xlsx_entries = [e for e in entries if e["started"][:7] == last_month]
+        path = last_month_dt.strftime("%B-%Y").lower() + ".xlsx"
+        export_xlsx(xlsx_entries, path)
+        console.print(f"[green]Saved:[/green] {path}")
+    elif args.tasks and args.json:
         by_month = defaultdict(list)
         for e in entries:
             by_month[e["started"][:7]].append(e)
